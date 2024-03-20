@@ -21,7 +21,7 @@ const videoSchema = new Schema (
         },
         duration:{
             type:Number,
-            requied:true
+            required:true
         },
         views:{
             type:Boolean,

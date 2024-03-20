@@ -6,3 +6,4 @@ class ApiResponse{
         this.succrss = stastusCode<400
     }
 }
+export {ApiResponse}
