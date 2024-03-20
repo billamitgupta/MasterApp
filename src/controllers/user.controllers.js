@@ -15,11 +15,12 @@ const registerUser = asyncHandler(async (req,res)=>{
   // return res
 
   const {username,fullName, email, password} = req.body
+  console.log(req.body)
   console.log("email : " , email)
   if([username,email,password,fullName].some((field)=>field?.trim()==="")){
     throw new ApiError(400,"fullname is required")
   }
-  const existedUser = User.findOne({
+  const existedUser = await User.findOne({
     $or: [{ email },{ username }]
   })
 
@@ -27,8 +28,13 @@ const registerUser = asyncHandler(async (req,res)=>{
     throw new ApiError(409, "user already exits")
   }
   const avatarLocalPath = req.files?.avatar[0]?.path;
-  const coverImageLocalPath = req.files?.coverImage[0]?.path;
+//   const coverImageLocalPath = req.files?.coverImage[0]?.path;
 
+// if image is uploaded then this code can handle all the erroe which is caused by above code
+  let coverImageLocalPath;
+  if(req.files && Array.isArray(req.files.coverImage) && req.files.coverImage[0]>0){
+    const coverImageLocalPath = req.files?.coverImage[0]?.path;
+  }  
   if(!avatarLocalPath) throw new ApiError(400, "Avatar nor avalable")
 
   const avatar = await uploadOnCloudinary(avatarLocalPath)
