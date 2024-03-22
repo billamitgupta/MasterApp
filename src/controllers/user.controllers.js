@@ -4,6 +4,21 @@ import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { response } from "express";
 import { ApiResponse } from "../utils/ApiResponse.js";
+
+const generateAccressAndRefrehToker = async (userId)=>{         
+    //here we created a metgod to generate accre and refresh token just by calling is method
+    try {
+        const user= await User.findById(userId)
+        const accessToken = user.generateAccessToken()
+        const refreshToken = user.generateRefreshToken() 
+
+        user.refreshToken =refreshToken
+        await user.save({validateBeforeSave:false})
+        return { accessToken,refreshToken}
+    } catch (error) {
+        throw new ApiError(500,"Something went wrong while generating refresh and access token")
+    }
+}
 const registerUser = asyncHandler(async (req,res)=>{
   //gey user details from frontend
   //validation -not empty
@@ -67,4 +82,79 @@ const registerUser = asyncHandler(async (req,res)=>{
 
 } )
 
-export  {registerUser}
+const loginUser = asyncHandler(async (req,res)=>{
+/*
+TODOS:
+1. take to login input from user (req body->data)
+2. validation on basis of(email or username)
+find the user 
+3. check for access token  (password check) 
+4.  Access token is expired then generate new access token after maching ACCESS REFRESH TOKEN of user from database if ACCESS REFRESH does not match generate new access refersh token and then generate new access token ((access and refesh token))
+5. send cookies 
+*/
+
+const {email,username,password} =req.body
+if(!username || !email){
+    throw new ApiError(400,"username or email is required")
+}
+
+ const user =await User.findOne({
+    $or: [ {username},{email}]
+})
+if(!user) {
+    throw new ApiError(404, "user not find")
+}
+const isPasswordValid = await user.isPasswordCorrect(password)
+
+if(!isPasswordCorrect) {
+    throw new ApiError(401, "Invalid credientials")
+}
+
+const {accessToken,refreshToken} = await generateAccressAndRefrehToker(user._id)
+
+const logedInUaer = await User.findById(user._id).select("-password -refeshToken ")
+
+//Security setep Now with this object Cookies can be edited by server only not in frontend
+
+const option ={
+    httpOnly : true,
+    secure : true
+}
+return res
+.status(200)
+.cookie("refreshToken", refreshToken , option)
+.cookie("accessToken",accessToken,option)
+.json(
+    new ApiResponse(200,{
+        user:logedInUaer,accessToken,refreshToken
+    },
+    "User logined in successfully"
+    )
+)
+
+})
+const logoutUser = asyncHandler(async (req,res)=>{
+    User.findByIdAndUpdate(
+       await req.user._id,{
+            $set:{
+                refreshToken: undefined
+            }
+        },
+        {
+            new: true
+        }
+    )
+    const option ={
+        httpOnly : true,
+        secure : true
+    }
+    return res
+    .status(200)
+    .clearCookie("accessTolen",option)
+    .clearCookie("refreshToken",option)
+    .json(new ApiResponse(200,{},"User logedout"))
+})
+
+
+export  {registerUser,
+    loginUser,logoutUser}
